@@ -263,6 +263,7 @@ subroutine read_sst_viirs(mype,val_viirs,ithin,rmesh,jsatid,&
      irec=0
 !    Read BUFR VIIRS 1b data
      read_msg: do while (ireadmg(lnbufr,subset,idate) >= 0)
+        if (irec == 0 ) write(*,*) 'read_viirs, idate = ',idate
         irec=irec+1
         if(irec < nrec_start) cycle read_msg
         next=next+1
@@ -410,7 +411,8 @@ subroutine read_sst_viirs(mype,val_viirs,ithin,rmesh,jsatid,&
 !
            call get_sunangle(idate,t4dv,dlon_earth,dlat_earth,sol_zen)
 
-!       write(*,'(a,F9.3,I6,F9.3)') 'viirs scan_ang,scan_pos,sol_zen : ',scan_ang,scan_pos,sol_zen
+        write(*,'(a,I12,f9.3,F9.3,I6,F9.3)') 'viirs idate,t4dv,lon,lat,scan_ang,scan_pos,sol_zen : ', &
+        idate,t4dv,dlon_earth_deg,dlat_earth_deg,scan_ang,scan_pos,sol_zen
 !
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !

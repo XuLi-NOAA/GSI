@@ -313,6 +313,7 @@ subroutine read_avhrr(mype,val_avhrr,ithin,rmesh,jsatid,&
      irec=0
 !    Read BUFR AVHRR GAC 1b data
      read_msg: do while (ireadmg(lnbufr,subset,idate) >= 0)
+        if (irec == 0 ) write(*,*) 'read_avhrr, idate = ',idate
         irec=irec+1
         if(irec < nrec_start) cycle read_msg
         next=next+1
