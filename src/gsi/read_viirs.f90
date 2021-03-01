@@ -46,7 +46,7 @@ subroutine read_sst_viirs(mype,val_viirs,ithin,rmesh,jsatid,&
   use satthin, only: super_val,itxmax,makegrids,map2tgrid,destroygrids, &
                      checkob, finalcheck,score_crit
   use satthin, only: radthin_time_info,tdiff2crit
-  use obsmod,  only: time_window_max
+  use obsmod,  only: time_window_max,ianldate
   use satthin, only: hsst
   use gridmod, only: diagnostic_reg,regional,nlat,nlon,tll2xy,txy2ll,rlats,rlons
   use constants, only: deg2rad, zero, one, two, half, rad2deg, r60inv
@@ -147,12 +147,42 @@ subroutine read_sst_viirs(mype,val_viirs,ithin,rmesh,jsatid,&
   nchanl = 5
   ich_m15    = 2
   r01 = 0.01_r_kind
+
   if ( rmesh == 888 ) then
      nmesh = 6
+     allocate(amesh(nmesh),hsst_thd(0:nmesh))
+!
+!    assign thinning box sizes related berror correlation length thresholds
+!
+     amesh(1) = 25.0_r_kind
+     amesh(2) = 40.0_r_kind
+     amesh(3) = 55.0_r_kind
+     amesh(4) = 70.0_r_kind
+     amesh(5) = 85.0_r_kind
+     amesh(6) = 100.0_r_kind
+
+     hsst_thd(0) = 2.0_r_kind
+     hsst_thd(1) = 30.0_r_kind
+     hsst_thd(2) = 40.0_r_kind
+     hsst_thd(3) = 50.0_r_kind
+     hsst_thd(4) = 60.0_r_kind
+     hsst_thd(5) = 70.0_r_kind
+     hsst_thd(6) = 80.0_r_kind
+
+!    hsst_thd(0) = 2.5_r_kind
+!    hsst_thd(1) = 37.5_r_kind
+!    hsst_thd(2) = 62.5_r_kind
+!    hsst_thd(3) = 87.5_r_kind
+!    hsst_thd(4) = 112.5_r_kind
+!    hsst_thd(5) = 137.5_r_kind
+!    hsst_thd(6) = 2000.0_r_kind
   else
      nmesh = 1
+     allocate(amesh(nmesh),hsst_thd(0:nmesh))
+     amesh(nmesh) = rmesh
+     hsst_thd(0) = 2.0_r_kind
+     hsst_thd(1) = 2000.0_r_kind
   endif
-  allocate(amesh(nmesh),hsst_thd(0:nmesh))
 
   dfov = (nviirs - one)/nfov
 
@@ -205,38 +235,6 @@ subroutine read_sst_viirs(mype,val_viirs,ithin,rmesh,jsatid,&
   if(dval_use) maxinfo = maxinfo + 2
   nreal = maxinfo + nstinfo
   nele  = nreal   + nchanl
-!
-! assign thinning box sizes related berror correlation length thresholds
-!
-! amesh(1) = 25.0_r_kind
-! amesh(2) = 50.0_r_kind
-! amesh(3) = 75.0_r_kind
-! amesh(4) = 100.0_r_kind
-! amesh(5) = 125.0_r_kind
-! amesh(6) = 145.0_r_kind
-
-! hsst_thd(0) = 2.5_r_kind
-! hsst_thd(1) = 37.5_r_kind
-! hsst_thd(2) = 62.5_r_kind
-! hsst_thd(3) = 87.5_r_kind
-! hsst_thd(4) = 112.5_r_kind
-! hsst_thd(5) = 137.5_r_kind
-! hsst_thd(6) = 2000.0_r_kind
-
-  amesh(1) = 25.0_r_kind
-  amesh(2) = 40.0_r_kind
-  amesh(3) = 55.0_r_kind
-  amesh(4) = 70.0_r_kind
-  amesh(5) = 85.0_r_kind
-  amesh(6) = 100.0_r_kind
-
-  hsst_thd(0) = 2.0_r_kind
-  hsst_thd(1) = 30.0_r_kind
-  hsst_thd(2) = 40.0_r_kind
-  hsst_thd(3) = 50.0_r_kind
-  hsst_thd(4) = 60.0_r_kind
-  hsst_thd(5) = 70.0_r_kind
-  hsst_thd(6) = 80.0_r_kind
 
   ndata = 0
   do imesh = 1, nmesh
@@ -246,8 +244,6 @@ subroutine read_sst_viirs(mype,val_viirs,ithin,rmesh,jsatid,&
      allocate( data_mesh(nele,itxmax) )
      allocate( nrec(itxmax) )
 
-!    write(*,'(a,a10,I8,F6.1,5I8)') 'read_viirs,jsatid,imesh,amesh,ithin,itxmax,mype,mype_sub,mype_root :', &
-!                               jsatid,imesh,amesh(imesh),ithin,itxmax,mype,mype_sub,mype_root
      if ( imesh == 1 ) then
         allocate( data_all(nele,itxmax) )
      endif
@@ -263,7 +259,7 @@ subroutine read_sst_viirs(mype,val_viirs,ithin,rmesh,jsatid,&
      irec=0
 !    Read BUFR VIIRS 1b data
      read_msg: do while (ireadmg(lnbufr,subset,idate) >= 0)
-        if (irec == 0 ) write(*,*) 'read_viirs, idate = ',idate
+
         irec=irec+1
         if(irec < nrec_start) cycle read_msg
         next=next+1
@@ -409,10 +405,7 @@ subroutine read_sst_viirs(mype,val_viirs,ithin,rmesh,jsatid,&
 !
 !          calculate solar zenith angle
 !
-           call get_sunangle(idate,t4dv,dlon_earth,dlat_earth,sol_zen)
-
-        write(*,'(a,I12,f9.3,F9.3,I6,F9.3)') 'viirs idate,t4dv,lon,lat,scan_ang,scan_pos,sol_zen : ', &
-        idate,t4dv,dlon_earth_deg,dlat_earth_deg,scan_ang,scan_pos,sol_zen
+           call get_sunangle(ianldate,t4dv,dlon_earth,dlat_earth,sol_zen)
 !
 !       interpolate NSST variables to Obs. location and get dtw, dtc, tz_tr
 !
@@ -493,7 +486,7 @@ subroutine read_sst_viirs(mype,val_viirs,ithin,rmesh,jsatid,&
           nele,itxmax,nread,ndata_mesh,data_mesh,score_crit,nrec)
 
      if ( nread > 0 ) then
-        write(*,'(a,a10,I3,F6.1,3I8)') 'read_viirs,jsatid,imesh,amesh,itxmax,nread,ndata_mesh :',jsatid,imesh,amesh(imesh),itxmax,nread,ndata_mesh
+        write(*,'(a,a10,I3,F6.1,3I10)') 'read_viirs,jsatid,imesh,amesh,itxmax,nread,ndata_mesh :',jsatid,imesh,amesh(imesh),itxmax,nread,ndata_mesh
      endif
 !
 !    get data_all by combining data from all thinning box sizes
